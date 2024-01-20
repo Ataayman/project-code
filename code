@@ -1,0 +1,178 @@
+// LCD module connections
+sbit LCD_RS at RD2_bit;
+sbit LCD_EN at RD3_bit;
+sbit LCD_D4 at RD4_bit;
+sbit LCD_D5 at RD5_bit;
+sbit LCD_D6 at RD6_bit;
+sbit LCD_D7 at RD7_bit;
+
+sbit LCD_RS_Direction at TRISD2_bit;
+sbit LCD_EN_Direction at TRISD3_bit;
+sbit LCD_D4_Direction at TRISD4_bit;
+sbit LCD_D5_Direction at TRISD5_bit;
+sbit LCD_D6_Direction at TRISD6_bit;
+sbit LCD_D7_Direction at TRISD7_bit;
+////////////////////////////////////////////////lcd
+//////////////ultrasonic///////////////////////////////
+sbit TRIG at RC3_bit;
+
+sbit TRIG_Direction at TRISC3_bit;
+
+sbit ECHO at RC2_bit;
+
+sbit ECHO_Direction at TRISC2_bit;
+///////////////////////////////////////////////////////
+
+ //////////////////////////variabels/////////////////////////////////////
+unsigned long int dist=0,cnt;
+
+unsigned char txt[15];
+
+
+int x = 0;
+int mod1=0;
+int mod2=0;
+int mod3=0;
+   //////////////////////////////
+void interrupt() {
+
+     if (INTCON.INTF == 1){         // detect rising edge
+
+       if (OPTION_REG.INTEDG ==1){
+
+           T1CON.TMR1ON = 1;      // put on timer1
+
+           OPTION_REG.INTEDG = 0; // set interrupt on falling edge
+
+           }
+
+       else if (OPTION_REG.INTEDG == 0){ // detect falling edge
+
+             T1CON.TMR1ON = 0;           // put off timer1
+
+             dist =((65536*cnt)+(TMR1L | (TMR1H<<8)))*0.0034;
+
+             TMR1L=0;   // clear timer1L
+
+             TMR1H=0;   // clear timer1H
+
+             cnt=0;   // clear cnt variable
+
+             OPTION_REG.INTEDG = 1; // set interrupt on rising edge
+
+             }
+
+       INTCON.INTF = 0;
+
+
+
+       }
+
+       else if (PIR1.TMR1IF == 1){   // timer1 overflow
+
+       cnt++;
+
+       PIR1.TMR1IF =0;
+
+         }
+
+}
+
+void main()
+{
+  OPTION_REG.INTEDG = 1; //INTERRUPT ON RISING EDGE
+  T1CON = 0x09;     // timer control register
+  INTCON = 0xD0;   // interrupt control register
+  PIE1.TMR1IE=1;   // timer1 interrupt enable bit
+  T1CON.TMR1ON = 0; // timer1 0ff initially
+  trisb0_bit=1;
+  trisc=0;
+  portc=0;
+  TRISD.F0=0;
+  TRISD.F1=0;
+  TRISC.F4=1;
+  TRISC.F5=1;
+  TRISC.F6=1;
+  PORTD.F0=0;
+  PORTD.F1=0;
+  Lcd_Init();                        // Initialize LCD
+  Lcd_Cmd(_LCD_CLEAR);               // Clear display
+  Lcd_Cmd(_LCD_CURSOR_OFF);          // Cursor off
+  Lcd_Out(1,1,"Wait...");        // Write text'Hello World' in first row
+  delay_ms(2000);
+  Lcd_Cmd(_LCD_CLEAR);
+  while (1)
+   {
+
+     Lcd_out(1,1,"distance =");
+     Inttostr(dist,txt);
+     Ltrim(txt);
+     Lcd_out(1,12,txt);
+     Lcd_out_cp("cm ");
+     TRIG=1;
+     delay_us(10);
+     TRIG=0;
+     if (PORTC.F4==1){
+
+          mod1=1;
+          mod2=0;
+          mod3=0;
+
+      }
+      if (PORTC.F5==1){
+
+          mod2=1;
+          mod1=0;
+          mod3=0;
+
+      }
+      if (PORTC.F6==1){
+
+          mod3=1;
+          mod1=0;
+          mod2=0;
+
+      }else
+      {
+        PORTD.F0=0;
+        PORTD.F1=0;
+        Lcd_out(2,1,"press");
+      
+      }
+      if(mod1==1&&dist>6){
+         PORTD.F0=1;
+         PORTD.F1=0;
+         Lcd_out(2,1,"mode1");
+      
+      }
+      if(mod1==1&&dist==6){
+        mod1=0;
+        Lcd_out(2,1,"FULL ");
+        delay_ms(2000);
+      }
+      if(mod2==1 && dist>4){
+         PORTD.F0=1;
+         PORTD.F1=0;
+         Lcd_out(2,1,"mode2");
+
+      }
+      if(mod2==1 &&dist==4){
+        mod2=0;
+        Lcd_out(2,1,"FULL ");
+        delay_ms(2000);
+      }
+      if(mod3==1 && dist>2){
+         PORTD.F0=1;
+         PORTD.F1=0;
+         Lcd_out(2,1,"mode3");
+
+      }
+      if(mod3==1 &&dist==2){
+        mod3=0;
+        Lcd_out(2,1,"FULL ");
+        delay_ms(2000);
+      }
+     delay_ms(100);
+
+   }
+}
